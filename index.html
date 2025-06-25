@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ferramenta Interativa de Brief de Campanha</title>
+    <!-- Chosen Palette: Warm Neutrals & Subtle Teal -->
+    <!-- Application Structure Plan: A single-page application with a fixed sidebar for navigation between brief sections (Objetivo, Público, Mensagem, etc.). This thematic, non-linear structure allows users to fill out the brief in any order, which matches the real-world workflow of gathering information. The main content area dynamically displays the selected section with interactive form elements. This is superior to a static document as it guides the user, structures data input, and uses visualizations (like the timeline chart) to enhance understanding. -->
+    <!-- Visualization & Content Choices: The source is a text-based template. Goal: Transform it into a data input tool. Method: Use interactive form elements (inputs, textareas, dynamic lists for personas/features) for textual data. For the 'Cronograma' section (Goal: Change/Organize), a dynamic Line Chart from Chart.js is used to visually represent campaign milestones over time, providing a much clearer and more engaging view than a simple list of dates. This choice adds significant value by making time-based planning intuitive. All other visual structuring is done with HTML and Tailwind. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Adicionado: date-fns para o adaptador de tempo do Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f5f5f4; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+        .nav-link.active { background-color: #ccfbf1; color: #0f766e; font-weight: 600; }
+        textarea { min-height: 100px; }
+    </style>
+</head>
+<body class="text-stone-800">
+
+    <div class="flex h-screen bg-stone-100">
+        <aside class="w-64 bg-white p-4 flex-shrink-0 border-r border-stone-200 hidden md:flex md:flex-col">
+            <h1 class="text-xl font-bold text-teal-700 mb-6">Brief Interativo</h1>
+            <nav id="sidebar-nav" class="flex flex-col space-y-2">
+                <a href="#objetivo" class="nav-link p-3 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors duration-200 active">1. Objetivo</a>
+                <a href="#publico" class="nav-link p-3 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors duration-200">2. Público-Alvo</a>
+                <a href="#mensagem" class="nav-link p-3 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors duration-200">3. Mensagem</a>
+                <a href="#pontos-venda" class="nav-link p-3 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors duration-200">4. Pontos de Venda</a>
+                <a href="#concorrencia" class="nav-link p-3 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors duration-200">5. Concorrência</a>
+                <a href="#canais" class="nav-link p-3 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors duration-200">6. Canais</a>
+                <a href="#orcamento" class="nav-link p-3 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors duration-200">7. Orçamento e Cronograma</a>
+                <a href="#cta" class="nav-link p-3 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors duration-200">8. CTA</a>
+                <a href="#restricoes" class="nav-link p-3 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors duration-200">9. Restrições</a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+            <button id="mobile-menu-btn" class="md:hidden mb-4 p-2 bg-white rounded-lg border">☰ Menu</button>
+            <div id="mobile-nav" class="hidden md:hidden bg-white p-4 rounded-lg mb-4"></div>
+            
+            <section id="objetivo" class="space-y-6">
+                <div class="prose max-w-none">
+                    <h2 class="text-3xl font-bold text-stone-800">1. Objetivo da Campanha</h2>
+                    <p class="text-stone-600">Defina claramente o que esta campanha precisa alcançar. O objetivo principal deve ser conciso, e as metas SMART fornecem os detalhes para garantir que seja específico, mensurável, atingível, relevante e com prazo definido.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                    <label for="objetivo-principal" class="block text-lg font-semibold mb-2">Objetivo Principal</label>
+                    <input type="text" id="objetivo-principal" placeholder="Ex: Aumentar vendas em 20% no próximo trimestre." class="w-full p-3 border border-stone-300 rounded-lg">
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                    <h3 class="text-lg font-semibold mb-4">Metas SMART</h3>
+                    <div class="grid grid-cols-1 gap-6">
+                        <div><label class="block font-medium mb-1">Specific (Específico)</label><textarea placeholder="O que queremos alcançar?" class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                        <div><label class="block font-medium mb-1">Measurable (Mensurável)</label><textarea placeholder="Como mediremos o sucesso?" class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                        <div><label class="block font-medium mb-1">Achievable (Atingível)</label><textarea placeholder="Isso é realista com nossos recursos?" class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                        <div><label class="block font-medium mb-1">Relevant (Relevante)</label><textarea placeholder="Por que isso é importante para o negócio?" class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                        <div><label class="block font-medium mb-1">Time-bound (Temporizável)</label><textarea placeholder="Qual é o prazo?" class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                    </div>
+                </div>
+            </section>
+            
+            <section id="publico" class="space-y-6 hidden">
+                <div class="prose max-w-none">
+                    <h2 class="text-3xl font-bold text-stone-800">2. Público-Alvo</h2>
+                    <p class="text-stone-600">Descreva em detalhes para quem é esta campanha. Quanto mais específico você for, mais eficaz será a sua mensagem. Use os campos abaixo para detalhar a demografia, psicografia e criar personas que representem seu cliente ideal.</p>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Demografia</label><textarea placeholder="Idade, gênero, localização, renda..." class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Psicografia</label><textarea placeholder="Interesses, valores, estilo de vida, dores..." class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                     <h3 class="text-lg font-semibold mb-4">Personas</h3>
+                     <div id="personas-container" class="space-y-4"></div>
+                     <button id="add-persona-btn" class="mt-4 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors">+ Adicionar Persona</button>
+                </div>
+            </section>
+
+            <section id="mensagem" class="space-y-6 hidden">
+                 <div class="prose max-w-none">
+                    <h2 class="text-3xl font-bold text-stone-800">3. Mensagem Central e Proposta de Valor</h2>
+                    <p class="text-stone-600">Este é o coração da sua campanha. Defina a mensagem principal que deve ficar na mente do público, a proposta de valor que diferencia sua oferta e o tom de voz que guiará toda a comunicação.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Principal Mensagem</label><textarea placeholder="Qual é a única coisa que queremos que o público lembre?" class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Proposta de Valor Única (PVU)</label><textarea placeholder="O que torna o produto/serviço diferente e melhor que a concorrência?" class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Tom de Voz</label><input type="text" placeholder="Ex: Amigável, irreverente, formal..." class="w-full p-3 border border-stone-300 rounded-lg"></div>
+            </section>
+            
+            <section id="pontos-venda" class="space-y-6 hidden">
+                <div class="prose max-w-none">
+                     <h2 class="text-3xl font-bold text-stone-800">4. Principais Pontos de Venda</h2>
+                     <p class="text-stone-600">Liste as características (features) do seu produto ou serviço e, mais importante, os benefícios que elas trazem para o cliente. Conecte o "o que" com o "porquê".</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                     <div id="features-container" class="space-y-4"></div>
+                     <button id="add-feature-btn" class="mt-4 bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors">+ Adicionar Ponto de Venda</button>
+                </div>
+            </section>
+
+            <section id="concorrencia" class="space-y-6 hidden">
+                <div class="prose max-w-none">
+                    <h2 class="text-3xl font-bold text-stone-800">5. Análise da Concorrência</h2>
+                    <p class="text-stone-600">Entender o cenário competitivo é crucial. Identifique seus principais concorrentes, analise suas estratégias e defina claramente seus diferenciais competitivos.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Principais Concorrentes</label><textarea placeholder="Liste os concorrentes diretos e indiretos." class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Diferenciais Competitivos</label><textarea placeholder="O que nos faz únicos em relação a eles?" class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+            </section>
+
+            <section id="canais" class="space-y-6 hidden">
+                 <div class="prose max-w-none">
+                    <h2 class="text-3xl font-bold text-stone-800">6. Canais de Distribuição e Mídia</h2>
+                    <p class="text-stone-600">Onde sua campanha será veiculada? Selecione os canais mais adequados para alcançar seu público-alvo e justifique suas escolhas. Pense também nos formatos de conteúdo para cada canal.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Canais Sugeridos</label><textarea placeholder="Ex: Google Ads, Meta Ads, LinkedIn, SEO, Influenciadores..." class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Formatos de Conteúdo</label><textarea placeholder="Ex: Vídeo, carrossel, artigo de blog, stories..." class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+            </section>
+
+            <section id="orcamento" class="space-y-6 hidden">
+                <div class="prose max-w-none">
+                    <h2 class="text-3xl font-bold text-stone-800">7. Orçamento e Cronograma</h2>
+                    <p class="text-stone-600">Defina os recursos financeiros e o tempo para a campanha. Adicione marcos importantes para criar um cronograma visual, ajudando a equipe a acompanhar o progresso e os prazos.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                    <label for="orcamento-total" class="block text-lg font-semibold mb-2">Orçamento Total (R$)</label>
+                    <input type="number" id="orcamento-total" placeholder="50000" class="w-full p-3 border border-stone-300 rounded-lg">
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                    <h3 class="text-lg font-semibold mb-4">Marcos Importantes do Cronograma</h3>
+                    <div id="milestones-container" class="space-y-4 mb-6"></div>
+                    <button id="add-milestone-btn" class="bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors">+ Adicionar Marco</button>
+                    <div class="chart-container mt-8">
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section id="cta" class="space-y-6 hidden">
+                <div class="prose max-w-none">
+                    <h2 class="text-3xl font-bold text-stone-800">8. Chamada para Ação (CTA)</h2>
+                    <p class="text-stone-600">O que você quer que o público faça após ver sua campanha? Seja claro e direto. Defina a ação principal que impulsionará seus objetivos.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">CTA Principal</label><input type="text" placeholder="Ex: Compre Agora, Baixe o Ebook, Agende uma Demo" class="w-full p-3 border border-stone-300 rounded-lg"></div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">CTAs Secundárias (se aplicável)</label><input type="text" class="w-full p-3 border border-stone-300 rounded-lg"></div>
+            </section>
+
+            <section id="restricoes" class="space-y-6 hidden">
+                 <div class="prose max-w-none">
+                    <h2 class="text-3xl font-bold text-stone-800">9. Considerações Legais/Restrições</h2>
+                    <p class="text-stone-600">Liste quaisquer diretrizes da marca, requisitos legais ou outras restrições que a equipe de criação e mídia precisa conhecer para evitar problemas.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Restrições</label><textarea placeholder="Ex: Não usar a cor X, seguir as diretrizes Y..." class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
+            </section>
+
+            <button id="download-pdf-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 mt-8">
+                Download PDF do Brief
+            </button>
+
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sections = document.querySelectorAll('main > section');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const mobileNavContainer = document.getElementById('mobile-nav');
+            const sidebarNav = document.getElementById('sidebar-nav');
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            
+            mobileNavContainer.innerHTML = sidebarNav.innerHTML;
+            const mobileNavLinks = mobileNavContainer.querySelectorAll('.nav-link');
+
+            function setActiveLink(targetId) {
+                const allLinks = [...navLinks, ...mobileNavLinks];
+                allLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === `#${targetId}`) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+
+            function showSection(targetId) {
+                sections.forEach(section => {
+                    section.classList.toggle('hidden', section.id !== targetId);
+                });
+                setActiveLink(targetId);
+                 window.scrollTo(0, 0);
+            }
+            
+            const handleNavClick = (event) => {
+                event.preventDefault();
+                const targetId = event.currentTarget.getAttribute('href').substring(1);
+                showSection(targetId);
+                if (window.innerWidth < 768) {
+                    mobileNavContainer.classList.add('hidden');
+                }
+            };
+
+            navLinks.forEach(link => link.addEventListener('click', handleNavClick));
+            mobileNavLinks.forEach(link => link.addEventListener('click', handleNavClick));
+            
+            mobileMenuBtn.addEventListener('click', () => {
+                mobileNavContainer.classList.toggle('hidden');
+            });
+
+            const personasContainer = document.getElementById('personas-container');
+            document.getElementById('add-persona-btn').addEventListener('click', () => {
+                const personaId = Date.now();
+                const newPersona = document.createElement('div');
+                newPersona.className = 'p-4 border border-stone-200 rounded-lg';
+                newPersona.innerHTML = `
+                    <input type="text" placeholder="Nome da Persona" class="w-full p-2 border border-stone-300 rounded-lg mb-2 font-semibold">
+                    <textarea placeholder="Descrição da Persona..." class="w-full p-2 border border-stone-300 rounded-lg"></textarea>
+                    <button class="remove-btn mt-2 text-red-500 hover:text-red-700 text-sm">Remover</button>
+                `;
+                personasContainer.appendChild(newPersona);
+                newPersona.querySelector('.remove-btn').addEventListener('click', () => newPersona.remove());
+            });
+
+            const featuresContainer = document.getElementById('features-container');
+            document.getElementById('add-feature-btn').addEventListener('click', () => {
+                const newFeature = document.createElement('div');
+                newFeature.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 items-center p-2';
+                newFeature.innerHTML = `
+                    <input type="text" placeholder="Feature (Característica)" class="w-full p-2 border border-stone-300 rounded-lg">
+                    <div class="flex items-center gap-2">
+                        <input type="text" placeholder="Benefício para o cliente" class="w-full p-2 border border-stone-300 rounded-lg">
+                        <button class="remove-btn text-red-500 hover:text-red-700 text-sm p-2">✖</button>
+                    </div>
+                `;
+                featuresContainer.appendChild(newFeature);
+                newFeature.querySelector('.remove-btn').addEventListener('click', () => newFeature.remove());
+            });
+
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            let timelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Marcos da Campanha',
+                        data: [],
+                        borderColor: '#0d9488',
+                        backgroundColor: '#ccfbf1',
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 5,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                tooltipFormat: 'DD MMM',
+                                displayFormats: {
+                                    day: 'DD MMM'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Data'
+                            }
+                        },
+                        y: {
+                           display: false
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].raw.label;
+                                },
+                                label: function(context) {
+                                     const date = new Date(context.parsed.x);
+                                     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            function updateChart() {
+                const milestones = document.querySelectorAll('#milestones-container .milestone');
+                const data = [];
+                milestones.forEach(m => {
+                    const date = m.querySelector('input[type="date"]').value;
+                    const desc = m.querySelector('input[type="text"]').value;
+                    if (date && desc) {
+                        data.push({ x: date, y: 1, label: desc });
+                    }
+                });
+                
+                data.sort((a, b) => new Date(a.x) - new Date(b.x));
+
+                timelineChart.data.datasets[0].data = data;
+                timelineChart.update();
+            }
+
+            const milestonesContainer = document.getElementById('milestones-container');
+            document.getElementById('add-milestone-btn').addEventListener('click', () => {
+                const newMilestone = document.createElement('div');
+                newMilestone.className = 'milestone grid grid-cols-1 md:grid-cols-2 gap-4 items-center p-2';
+                newMilestone.innerHTML = `
+                    <input type="text" placeholder="Descrição do Marco" class="w-full p-2 border border-stone-300 rounded-lg">
+                    <div class="flex items-center gap-2">
+                         <input type="date" class="w-full p-2 border border-stone-300 rounded-lg">
+                        <button class="remove-btn text-red-500 hover:text-red-700 text-sm p-2">✖</button>
+                    </div>
+                `;
+                milestonesContainer.appendChild(newMilestone);
+                newMilestone.querySelector('.remove-btn').addEventListener('click', () => {
+                    newMilestone.remove();
+                    updateChart();
+                });
+                [...newMilestone.querySelectorAll('input')].forEach(input => {
+                    input.addEventListener('change', updateChart);
+                });
+            });
+
+            function getPrintableBriefHtml() {
+                let htmlContent = `
+                    <div style="font-family: 'Inter', sans-serif; padding: 20mm; color: #333; line-height: 1.5; font-size: 14px;">
+                        <h1 style="font-size: 28px; font-weight: bold; margin-bottom: 20px; text-align: center; color: #0f766e;">Brief de Campanha</h1>
+                        <p style="margin-bottom: 30px; text-align: center; color: #555;">Relatório gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+                `;
+
+                const sectionData = [
+                    { id: 'objetivo', title: '1. Objetivo da Campanha', description: 'Defina claramente o que esta campanha precisa alcançar. O objetivo principal deve ser conciso, e as metas SMART fornecem os detalhes para garantir que seja específico, mensurável, atingível, relevante e com prazo definido.', fields: [
+                        { label: 'Objetivo Principal', type: 'input', selector: '#objetivo-principal' },
+                        { label: 'Specific (Específico)', type: 'textarea', selector: '#objetivo textarea:nth-of-type(1)' },
+                        { label: 'Measurable (Mensurável)', type: 'textarea', selector: '#objetivo textarea:nth-of-type(2)' },
+                        { label: 'Achievable (Atingível)', type: 'textarea', selector: '#objetivo textarea:nth-of-type(3)' },
+                        { label: 'Relevant (Relevante)', type: 'textarea', selector: '#objetivo textarea:nth-of-type(4)' },
+                        { label: 'Time-bound (Temporizável)', type: 'textarea', selector: '#objetivo textarea:nth-of-type(5)' }
+                    ]},
+                    { id: 'publico', title: '2. Público-Alvo', description: 'Descreva em detalhes para quem é esta campanha. Quanto mais específico você for, mais eficaz será a sua mensagem. Use os campos abaixo para detalhar a demografia, psicografia e criar personas que representem seu cliente ideal.', fields: [
+                        { label: 'Demografia', type: 'textarea', selector: '#publico textarea:nth-of-type(1)' },
+                        { label: 'Psicografia', type: 'textarea', selector: '#publico textarea:nth-of-type(2)' }
+                    ], dynamic: {
+                        title: 'Personas', containerId: 'personas-container', items: (div) => {
+                            const name = div.querySelector('input').value;
+                            const desc = div.querySelector('textarea').value;
+                            return `<b>${name || 'Nome da Persona não preenchido'}</b><br><span style="margin-left: 20px;">${desc || 'Descrição não preenchida'}</span>`;
+                        }
+                    }},
+                    { id: 'mensagem', title: '3. Mensagem Central e Proposta de Valor', description: 'Este é o coração da sua campanha. Defina a mensagem principal que deve ficar na mente do público, a proposta de valor que diferencia sua oferta e o tom de voz que guiará toda a comunicação.', fields: [
+                        { label: 'Principal Mensagem', type: 'textarea', selector: '#mensagem textarea:nth-of-type(1)' },
+                        { label: 'Proposta de Valor Única (PVU)', type: 'textarea', selector: '#mensagem textarea:nth-of-type(2)' },
+                        { label: 'Tom de Voz', type: 'input', selector: '#mensagem input' }
+                    ]},
+                    { id: 'pontos-venda', title: '4. Principais Pontos de Venda', description: 'Liste as características (features) do seu produto ou serviço e, mais importante, os benefícios que elas trazem para o cliente. Conecte o "o que" com o "porquê".', fields: [], dynamic: {
+                        title: 'Pontos de Venda', containerId: 'features-container', items: (div) => {
+                            const feature = div.querySelector('input:nth-of-type(1)').value;
+                            const benefit = div.querySelector('input:nth-of-type(2)').value;
+                            return `<b>${feature || 'Não preenchido'}</b> -> ${benefit || 'Não preenchido'}`;
+                        }
+                    }},
+                    { id: 'concorrencia', title: '5. Análise da Concorrência', description: 'Entender o cenário competitivo é crucial. Identifique seus principais concorrentes, analise suas estratégias e defina claramente seus diferenciais competitivos.', fields: [
+                        { label: 'Principais Concorrentes', type: 'textarea', selector: '#concorrencia textarea:nth-of-type(1)' },
+                        { label: 'Diferenciais Competitivos', type: 'textarea', selector: '#concorrencia textarea:nth-of-type(2)' }
+                    ]},
+                    { id: 'canais', title: '6. Canais de Distribuição e Mídia', description: 'Onde sua campanha será veiculada? Selecione os canais mais adequados para alcançar seu público-alvo e justifique suas escolhas. Pense também nos formatos de conteúdo para cada canal.', fields: [
+                        { label: 'Canais Sugeridos', type: 'textarea', selector: '#canais textarea:nth-of-type(1)' },
+                        { label: 'Formatos de Conteúdo', type: 'textarea', selector: '#canais textarea:nth-of-type(2)' }
+                    ]},
+                    { id: 'orcamento', title: '7. Orçamento e Cronograma', description: 'Defina os recursos financeiros e o tempo para a campanha. Adicione marcos importantes para criar um cronograma visual, ajudando a equipe a acompanhar o progresso e os prazos.', fields: [
+                        { label: 'Orçamento Total', type: 'input', selector: '#orcamento-total' }
+                    ], dynamic: {
+                        title: 'Marcos Importantes do Cronograma', containerId: 'milestones-container', items: (div) => {
+                            const desc = div.querySelector('input[type="text"]').value;
+                            const date = div.querySelector('input[type="date"]').value;
+                            const formattedDate = date ? new Date(date).toLocaleDateString('pt-BR') : 'Não preenchida';
+                            return `<b>${desc || 'Não preenchido'}</b> (Data: ${formattedDate})`;
+                        }
+                    }, hasChart: true},
+                    { id: 'cta', title: '8. Chamada para Ação (CTA)', description: 'O que você quer que o público faça após ver sua campanha? Seja claro e direto. Defina a ação principal que impulsionará seus objetivos.', fields: [
+                        { label: 'CTA Principal', type: 'input', selector: '#cta input:nth-of-type(1)' },
+                        { label: 'CTAs Secundárias (se aplicável)', type: 'input', selector: '#cta input:nth-of-type(2)' }
+                    ]},
+                    { id: 'restricoes', title: '9. Considerações Legais/Restrições', description: 'Liste quaisquer diretrizes da marca, requisitos legais ou outras restrições que a equipe de criação e mídia precisa conhecer para evitar problemas.', fields: [
+                        { label: 'Restrições', type: 'textarea', selector: '#restricoes textarea' }
+                    ]}
+                ];
+
+                sectionData.forEach(section => {
+                    htmlContent += `<h2 style="font-size: 20px; font-weight: bold; margin-top: 25px; margin-bottom: 10px; color: #0d9488;">${section.title}</h2>`;
+                    htmlContent += `<p style="margin-bottom: 15px; color: #555;">${section.description}</p>`;
+                    
+                    section.fields.forEach(field => {
+                        const element = document.querySelector(field.selector);
+                        const value = element ? element.value || 'Não preenchido' : 'Não encontrado';
+                        htmlContent += `<p style="margin-bottom: 5px;"><b>${field.label}:</b> ${value}</p>`;
+                    });
+
+                    if (section.dynamic) {
+                        htmlContent += `<h3 style="font-size: 18px; font-weight: bold; margin-top: 15px; margin-bottom: 10px;">${section.dynamic.title}</h3>`;
+                        const container = document.getElementById(section.dynamic.containerId);
+                        if (container && container.children.length > 0) {
+                            Array.from(container.children).forEach((childDiv, index) => {
+                                htmlContent += `<p style="margin-bottom: 5px;">${section.dynamic.items(childDiv)}</p>`;
+                            });
+                        } else {
+                            htmlContent += `<p style="margin-bottom: 5px;">Nenhum item adicionado.</p>`;
+                        }
+                    }
+                    
+                    if (section.hasChart) {
+                        htmlContent += `<div id="pdf-chart-placeholder" style="width: 100%; height: 300px; margin-top: 20px; text-align: center;"></div>`;
+                    }
+                });
+
+                htmlContent += `</div>`;
+                return htmlContent;
+            }
+
+            document.getElementById('download-pdf-btn').addEventListener('click', async () => {
+                const tempDiv = document.createElement('div');
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.width = '210mm';
+                tempDiv.style.boxSizing = 'border-box';
+
+                tempDiv.innerHTML = getPrintableBriefHtml();
+                
+                const chartCanvas = document.getElementById('timelineChart');
+                if (chartCanvas) {
+                    try {
+                        const chartImg = document.createElement('img');
+                        chartImg.src = chartCanvas.toDataURL('image/png');
+                        chartImg.style.width = '100%';
+                        chartImg.style.height = 'auto';
+                        chartImg.style.marginTop = '20px';
+                        chartImg.style.border = '1px solid #eee';
+                        const chartPlaceholder = tempDiv.querySelector('#pdf-chart-placeholder');
+                        if (chartPlaceholder) {
+                            chartPlaceholder.appendChild(chartImg);
+                            chartPlaceholder.style.height = 'auto';
+                        }
+                    } catch (e) {
+                        console.error("Erro ao capturar o gráfico para PDF:", e);
+                    }
+                }
+
+                document.body.appendChild(tempDiv);
+
+                try {
+                    const canvas = await html2canvas(tempDiv, { scale: 2, logging: false, useCORS: true, backgroundColor: '#ffffff' });
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+                    const imgWidth = 210;
+                    const pageHeight = 297;
+                    const imgHeight = canvas.height * imgWidth / canvas.width;
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+
+                    while (heightLeft >= 0) {
+                        position = heightLeft - imgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+                    pdf.save('brief-de-campanha.pdf');
+                } catch (error) {
+                    console.error("Erro ao gerar PDF:", error);
+                } finally {
+                    document.body.removeChild(tempDiv);
+                }
+            });
+
+            showSection('objetivo');
+        });
+    </script>
+</body>
+</html>
