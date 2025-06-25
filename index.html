@@ -444,85 +444,57 @@
             }
 
             document.getElementById('download-pdf-btn').addEventListener('click', async () => {
-                const tempDiv = document.createElement('div');
-                // Posicionar o div temporariamente fora da tela mas renderizável para html2canvas
-                tempDiv.style.position = 'absolute';
-                tempDiv.style.left = '-9999px';
-                tempDiv.style.width = '210mm'; // Largura A4 padrão
-                tempDiv.style.background = '#ffffff'; // Fundo branco para o PDF
-                tempDiv.style.boxSizing = 'border-box'; // Incluir padding e border no width/height
-                tempDiv.style.padding = '20mm'; // Espaçamento para o conteúdo
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = getPrintableBriefHtml();
+    
+    // Deixe o div visível na tela (mas fora da viewport)
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.top = '0';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.width = '800px';
+    tempDiv.style.background = '#ffffff';
+    tempDiv.style.padding = '20px';
+    tempDiv.style.zIndex = '9999';
 
-                tempDiv.innerHTML = getPrintableBriefHtml();
-                
-                const chartCanvas = document.getElementById('timelineChart');
-                if (chartCanvas) {
-                    try {
-                        // Redesenha o gráfico em um canvas temporário para garantir a melhor qualidade para o PDF
-                        const offscreenCanvas = document.createElement('canvas');
-                        offscreenCanvas.width = 800; // Tamanho ideal para captura
-                        offscreenCanvas.height = 400; // Tamanho ideal para captura
-                        const offscreenCtx = offscreenCanvas.getContext('2d');
+    document.body.appendChild(tempDiv);
 
-                        // Criar uma nova instância do gráfico para renderizar no canvas offscreen
-                        const chartConfigForPDF = JSON.parse(JSON.stringify(timelineChart.config)); // Copia a configuração
-                        chartConfigForPDF.options.responsive = false; // Desativa responsividade para renderização fixa
-                        chartConfigForPDF.options.maintainAspectRatio = false; // Desativa maintainAspectRatio
+    try {
+        const canvas = await html2canvas(tempDiv, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff'
+        });
 
-                        new Chart(offscreenCtx, chartConfigForPDF);
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
 
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const imgHeight = (imgProps.height * pageWidth) / imgProps.width;
 
-                        const chartImg = document.createElement('img');
-                        chartImg.src = offscreenCanvas.toDataURL('image/png');
-                        chartImg.style.width = '100%';
-                        chartImg.style.height = 'auto';
-                        chartImg.style.marginTop = '20px';
-                        chartImg.style.border = '1px solid #eee';
-                        const chartPlaceholder = tempDiv.querySelector('#pdf-chart-placeholder');
-                        if (chartPlaceholder) {
-                            chartPlaceholder.appendChild(chartImg);
-                            chartPlaceholder.style.height = 'auto';
-                        }
-                    } catch (e) {
-                        console.error("Erro ao capturar o gráfico para PDF:", e);
-                    }
-                }
+        let heightLeft = imgHeight;
+        let position = 0;
 
-                document.body.appendChild(tempDiv);
+        pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
+        heightLeft -= pageHeight;
 
-                try {
-                    const canvas = await html2canvas(tempDiv, { 
-                        scale: 2, // Aumenta a resolução para melhor qualidade no PDF
-                        logging: false, 
-                        useCORS: true, 
-                        backgroundColor: '#ffffff' // Garante fundo branco
-                    });
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jspdf.jsPDF('p', 'mm', 'a4'); // 'p' para retrato, 'mm' para milímetros, 'a4' para tamanho de página
-                    const imgWidth = 210; // Largura A4 em mm
-                    const pageHeight = 297; // Altura A4 em mm
-                    const imgHeight = canvas.height * imgWidth / canvas.width; // Calcula a altura da imagem proporcionalmente
-                    let heightLeft = imgHeight;
-                    let position = 0;
+        while (heightLeft > 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, pageWidth, imgHeight);
+            heightLeft -= pageHeight;
+        }
 
-                    // Adiciona a primeira página
-                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
+        pdf.save('brief-de-campanha.pdf');
+    } catch (error) {
+        alert("Erro ao gerar PDF: " + error.message);
+        console.error(error);
+    } finally {
+        document.body.removeChild(tempDiv);
+    }
+});
 
-                    // Se a imagem for maior que uma página, adiciona mais páginas
-                    while (heightLeft >= 0) {
-                        position = heightLeft - imgHeight;
-                        pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                        heightLeft -= pageHeight;
-                    }
-                    pdf.save('brief-de-campanha.pdf');
-                } catch (error) {
-                    console.error("Erro ao gerar PDF:", error);
-                } finally {
-                    document.body.removeChild(tempDiv); // Remover o div temporário após a geração
-                }
-            });
 
             showSection('objetivo'); // Mostra a primeira seção por padrão
         });
