@@ -161,7 +161,7 @@
                 <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200"><label class="block text-lg font-semibold mb-2">Restrições</label><textarea placeholder="Ex: Não usar a cor X, seguir as diretrizes Y..." class="w-full p-3 border border-stone-300 rounded-lg"></textarea></div>
             </section>
 
-            <button id="download-pdf-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 mt-8">
+            <button id="download-pdf-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-200 ease-in-out transform hover:scale-105 mt-8 hidden">
                 Download PDF do Brief
             </button>
 
@@ -175,6 +175,7 @@
             const mobileNavContainer = document.getElementById('mobile-nav');
             const sidebarNav = document.getElementById('sidebar-nav');
             const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const downloadPdfBtn = document.getElementById('download-pdf-btn');
             
             mobileNavContainer.innerHTML = sidebarNav.innerHTML;
             const mobileNavLinks = mobileNavContainer.querySelectorAll('.nav-link');
@@ -194,7 +195,14 @@
                     section.classList.toggle('hidden', section.id !== targetId);
                 });
                 setActiveLink(targetId);
-                 window.scrollTo(0, 0);
+                window.scrollTo(0, 0);
+
+                // Controlar visibilidade do botão de PDF
+                if (targetId === 'restricoes') {
+                    downloadPdfBtn.classList.remove('hidden');
+                } else {
+                    downloadPdfBtn.classList.add('hidden');
+                }
             }
             
             const handleNavClick = (event) => {
@@ -284,7 +292,8 @@
                         tooltip: {
                             callbacks: {
                                 title: function(context) {
-                                    return context[0].raw.label;
+                                    // Certifica-se de que a label existe antes de tentar acessá-la
+                                    return context.length > 0 ? context[0].raw.label : '';
                                 },
                                 label: function(context) {
                                      const date = new Date(context.parsed.x);
@@ -332,6 +341,7 @@
                 [...newMilestone.querySelectorAll('input')].forEach(input => {
                     input.addEventListener('change', updateChart);
                 });
+                updateChart(); // Chamar updateChart após adicionar um novo marco
             });
 
             function getPrintableBriefHtml() {
@@ -432,10 +442,17 @@
 
             document.getElementById('download-pdf-btn').addEventListener('click', async () => {
                 const tempDiv = document.createElement('div');
-                tempDiv.style.position = 'absolute';
-                tempDiv.style.left = '-9999px';
-                tempDiv.style.width = '210mm';
-                tempDiv.style.boxSizing = 'border-box';
+                // Posicionar o div temporariamente visível mas fora da tela principal para html2canvas capturar corretamente
+                tempDiv.style.position = 'fixed';
+                tempDiv.style.left = '0';
+                tempDiv.style.top = '0';
+                tempDiv.style.width = '100vw'; // Usar vw para garantir que o html2canvas tenha um tamanho de viewport para renderizar
+                tempDiv.style.height = '100vh';
+                tempDiv.style.overflow = 'auto'; // Permitir rolagem se o conteúdo for maior que a tela
+                tempDiv.style.background = '#ffffff'; // Fundo branco para o PDF
+                tempDiv.style.zIndex = '-1000'; // Enviar para trás para não interferir na interação
+                tempDiv.style.opacity = '0'; // Tornar invisível
+                tempDiv.style.pointerEvents = 'none'; // Desabilitar eventos de mouse
 
                 tempDiv.innerHTML = getPrintableBriefHtml();
                 
@@ -461,7 +478,7 @@
                 document.body.appendChild(tempDiv);
 
                 try {
-                    const canvas = await html2canvas(tempDiv, { scale: 2, logging: false, useCORS: true, backgroundColor: '#ffffff' });
+                    const canvas = await html2canvas(tempDiv, { scale: 2, logging: false, useCORS: true, backgroundColor: null }); // Use null for background to allow the tempDiv's background to be used
                     const imgData = canvas.toDataURL('image/png');
                     const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
                     const imgWidth = 210;
@@ -487,7 +504,7 @@
                 }
             });
 
-            showSection('objetivo');
+            showSection('objetivo'); // Mostra a primeira seção por padrão
         });
     </script>
 </body>
